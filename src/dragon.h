@@ -13,11 +13,14 @@ void updateFlames();
 void flameBox(int* x1, int* y1, int* x2, int* y2);
 
 Image dragonImage(DRAGON_IMAGE_DATA);
-#define PLAYER_SPEED_X 2
-#define PLAYER_SPEED_Y 1
+#define PLAYER_SPEED_X (2 << SUBPIXEL_BITS)
+#define PLAYER_SPEED_Y (1 << SUBPIXEL_BITS)
+#define PLAYER_W (dragonImage.width() << SUBPIXEL_BITS)
+#define PLAYER_H (dragonImage.height() << SUBPIXEL_BITS)
+
 struct Player {
-	uint8_t x;
-	uint8_t y;
+	int16_t x;
+	int16_t y;
 };
 Player player;
 
@@ -27,45 +30,46 @@ Image flameImage(FLAME_BREATH_IMAGE_DATA);
 #define FLAME_ATTACH_FRAME_COUNT 4
 // last two frames are short too, but at the other end of the image
 #define SHORT_END_FLAME (2 * FLAME_BREATH_IMAGE_DATA[3])
+#define BREATH_W (flameImage.width() << SUBPIXEL_BITS)
+#define BREATH_H (flameImage.height() << SUBPIXEL_BITS)
 struct Flames {
 	uint8_t durationRemaining;
-	uint8_t x;
-	uint8_t y;
+	int16_t x;
+	int16_t y;
 };
 Flames flames;
 
 void drawPlayer() {
 	gb.display.setPalette(DRAGON_PALETTE_RED);
-	gb.display.drawImage(player.x, player.y, dragonImage);
+	gb.display.drawImage(player.x >> SUBPIXEL_BITS, player.y >> SUBPIXEL_BITS, dragonImage);
 	if (flames.durationRemaining > 0) {
-		gb.display.drawImage(flames.x, flames.y, flameImage);
+		gb.display.drawImage(flames.x >> SUBPIXEL_BITS, flames.y >> SUBPIXEL_BITS, flameImage);
 	}
 }
 
 void updatePlayer() {
 	if (gb.buttons.repeat(BUTTON_LEFT, 0)) {
-		if (player.x - PLAYER_SPEED_X > 0) {
-			player.x -= PLAYER_SPEED_X;
-		} else {
+		player.x -= PLAYER_SPEED_X;
+		if (player.x < 0) {
 			player.x = 0;
 		}
 	}
 	if (gb.buttons.repeat(BUTTON_RIGHT, 0)) {
 		player.x += PLAYER_SPEED_X;
-		if (player.x >= PLAY_AREA_W - dragonImage.width()) {
-			player.x = PLAY_AREA_W - dragonImage.width() - 1;
+		if (player.x >= PLAY_AREA_W - PLAYER_W) {
+			player.x = PLAY_AREA_W - PLAYER_W - 1;
 		}
 	}
 	if (gb.buttons.repeat(BUTTON_UP, 0)) {
 		player.y -= PLAYER_SPEED_Y;
-		if (player.y < flameImage.height()) {
-			player.y = flameImage.height();
+		if (player.y < BREATH_H) {
+			player.y = BREATH_H;
 		}
 	}
 	if (gb.buttons.repeat(BUTTON_DOWN, 0)) {
 		player.y += PLAYER_SPEED_Y;
-		if (player.y >= PLAY_AREA_H - dragonImage.height()) {
-			player.y = PLAY_AREA_H - dragonImage.height() - 1;
+		if (player.y >= PLAY_AREA_H - PLAYER_H) {
+			player.y = PLAY_AREA_H - PLAYER_H - 1;
 		}
 	}
 
@@ -114,7 +118,7 @@ void updateFlames() {
 		flameImage.setFrame((FLAME_ATTACH_FRAME_COUNT * flameStrength) / (MAX_FLAME_STRENGTH + 1));
 		flames.durationRemaining = FLAME_DETACHED_DURATION;
 		flames.x = player.x;
-		flames.y = player.y - flameImage.height();
+		flames.y = player.y - BREATH_H;
 	}
 	if ((!gb.buttons.repeat(BUTTON_A, 0) || flameEndurance == 0) && isFlaming) {
 		isFlaming = false;
@@ -150,10 +154,10 @@ void flameBox(int* x1, int* y1, int* x2, int* y2) {
 	if (flames.durationRemaining > 0) {
 		*x1 = flames.x;
 		*y1 = flames.y;
-		*x2 = flames.x + flameImage.width();
-		*y2 = flames.y + flameImage.height();
+		*x2 = flames.x + BREATH_W;
+		*y2 = flames.y + BREATH_H;
 		if (flames.durationRemaining < SHORT_END_FLAME) {
-			*y2 = flames.y + flameImage.height() / 2;
+			*y2 = flames.y + BREATH_H / 2;
 		}
 	} else {
 		*x1 = *y1 = *x2 = *y2 = 0;
